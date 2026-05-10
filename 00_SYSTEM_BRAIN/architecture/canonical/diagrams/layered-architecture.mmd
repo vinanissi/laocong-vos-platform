@@ -1,0 +1,182 @@
+%% =============================================================
+%% LAOCONG_VOS_PLATFORM — Canonical Diagram
+%% File:        layered-architecture.mmd
+%% Type:        Mermaid flowchart
+%% Doctrine:    canonical/00_PLATFORM_OVERVIEW.md
+%%              canonical/10_RUNTIME_FIRST_ARCHITECTURE.md
+%%              canonical/20_INTEGRATION_BOUNDARY.md
+%% Refs:        ADR-0001 (operational runtime platform), ADR-0002 (demote GAS/GWS),
+%%              ADR-0003 (runtime-first)
+%% Status:      Draft Canonical (visualization only — NOT runtime implementation)
+%% Last review: 2026-05-10 (Phase 002 Turn 4)
+%%
+%% Quy tắc luồng phụ thuộc đúng:
+%%  - Apps gọi Services HOẶC Runtime SDK (qua packages/runtime-sdk).
+%%  - Apps KHÔNG gọi Database trực tiếp.
+%%  - Services gọi Runtime (KHÔNG sở hữu nghiệp vụ).
+%%  - Runtime ghi Database / Event Log / Audit Log (qua repository contract).
+%%  - Runtime dùng Packages (core-contracts, event-bus, ...).
+%%  - Integrations chỉ qua Services/Adapters → Runtime command-engine.
+%%  - Integrations KHÔNG bypass Runtime.
+%%  - Integrations KHÔNG giữ business truth.
+%%  - Test Console / Governance là cross-cutting (đọc/test mọi layer offline).
+%%  - ADR / canonical docs là governance — KHÔNG là code, nhưng ràng buộc mọi layer.
+%% =============================================================
+
+flowchart TB
+    %% ──────── Apps Layer ────────
+    subgraph APPS [apps/ — UI Layer]
+      direction LR
+      ADMIN[admin-web]
+      STAFF[staff-web]
+      MEMBER[member-web]
+      PUBLIC[public-web]
+    end
+
+    %% ──────── Services Layer ────────
+    subgraph SERVICES [services/ — transport, KHÔNG sở hữu nghiệp vụ]
+      direction LR
+      API[api<br/>HTTP gateway]
+      WORKER[worker<br/>queue consumer]
+      AI_RT[ai-runtime<br/>orchestration · suggest only]
+      NOTIF[notification<br/>dispatch event → external]
+      AUTH[auth<br/>session · token]
+    end
+
+    %% ──────── Runtime Layer (CORE) ────────
+    subgraph RUNTIME [runtime/ — CORE · sở hữu business truth]
+      direction LR
+      CMD_ENG[command-engine]
+      EVT_ENG[event-engine]
+      WF_ENG[workflow-engine]
+      TASK_ENG[task-engine]
+      PERM_ENG[permission-engine]
+      AUDIT_ENG[audit-engine<br/>append-only]
+    end
+
+    %% ──────── Database Layer ────────
+    subgraph DB [database/ — storage · RLS · migrations]
+      direction LR
+      SUPABASE[(Supabase Postgres)]
+      EVT_STORE[(event_store<br/>append-only)]
+      AUDIT_LOG[(audit_log<br/>append-only)]
+    end
+
+    %% ──────── Packages Layer ────────
+    subgraph PKG [packages/ — shared internal]
+      direction LR
+      CORE_CTR[core-contracts]
+      RT_SDK[runtime-sdk]
+      EVT_BUS[event-bus]
+      UI_KIT[ui-kit]
+      VAL[validators]
+      TC_KIT[test-console-kit]
+    end
+
+    %% ──────── Integrations Layer ────────
+    subgraph INTEG [integrations/ — external capability · KHÔNG giữ truth]
+      direction LR
+      GAS_SUP[gas-support<br/>+ legacy-modules]
+      GWS[google-workspace<br/>Drive · Gmail · Docs · Sheet]
+      LARK[lark]
+      ZALO[zalo]
+      TELE[telegram]
+      MAIL[email]
+      OPENAI[openai]
+      GEMINI[gemini]
+      ANTHROPIC[anthropic]
+      OCR[ocr]
+      MAPS[maps]
+      PAY[payment]
+      MISA[misa]
+      STORAGE[storage]
+    end
+
+    %% ──────── Governance Layer (cross-cutting) ────────
+    subgraph GOV [Test Console / Governance Layer — cross-cutting, no runtime mutation]
+      direction LR
+      TEST_CONS[test-console-kit usage<br/>per engine · offline]
+      ADR_DOCS[ADR + canonical docs<br/>00_SYSTEM_BRAIN/]
+    end
+
+    %% ──────── Allowed flows ────────
+    APPS -->|HTTP/RPC| API
+    APPS -->|read projection via SDK| RT_SDK
+    APPS -->|auth check| AUTH
+
+    API -->|dispatch command| CMD_ENG
+    WORKER -->|consume event| EVT_ENG
+    WORKER -->|emit downstream command| CMD_ENG
+    AI_RT -->|suggested command<br/>require human accept| API
+    NOTIF -->|on event| EVT_ENG
+
+    CMD_ENG --> EVT_ENG
+    CMD_ENG --> PERM_ENG
+    CMD_ENG --> AUDIT_ENG
+    EVT_ENG --> WF_ENG
+    EVT_ENG --> TASK_ENG
+    EVT_ENG --> AUDIT_ENG
+    WF_ENG --> AUDIT_ENG
+    TASK_ENG --> AUDIT_ENG
+    PERM_ENG --> AUDIT_ENG
+
+    EVT_ENG -->|append| EVT_STORE
+    AUDIT_ENG -->|append| AUDIT_LOG
+    WF_ENG -->|state via repo| SUPABASE
+    TASK_ENG -->|state via repo| SUPABASE
+
+    CMD_ENG -.->|uses contract| CORE_CTR
+    EVT_ENG -.->|uses bus| EVT_BUS
+    WF_ENG -.->|uses contract| CORE_CTR
+    TASK_ENG -.->|uses contract| CORE_CTR
+    PERM_ENG -.->|uses validators| VAL
+    APPS -.->|uses ui kit| UI_KIT
+    RT_SDK -.->|wraps contract| CORE_CTR
+
+    %% Integrations chỉ vào runtime qua services
+    GAS_SUP -->|HTTPS adapter| API
+    GWS -->|adapter| API
+    LARK -->|adapter| NOTIF
+    ZALO -->|adapter| NOTIF
+    TELE -->|adapter| NOTIF
+    MAIL -->|adapter| NOTIF
+    OCR -->|adapter| WORKER
+    MAPS -->|adapter| WORKER
+    PAY -->|adapter| WORKER
+    MISA -->|adapter| WORKER
+    STORAGE -->|adapter| WORKER
+    OPENAI -->|adapter| AI_RT
+    GEMINI -->|adapter| AI_RT
+    ANTHROPIC -->|adapter| AI_RT
+
+    %% Notification flow OUT
+    NOTIF -->|send| MAIL
+    NOTIF -->|send| TELE
+    NOTIF -->|send| ZALO
+    NOTIF -->|send| LARK
+
+    %% Governance cross-cutting (read-only / test)
+    TEST_CONS -.->|test offline| RUNTIME
+    TEST_CONS -.->|test offline| INTEG
+    ADR_DOCS -.->|govern| RUNTIME
+    ADR_DOCS -.->|govern| INTEG
+    ADR_DOCS -.->|govern| SERVICES
+    ADR_DOCS -.->|govern| APPS
+    ADR_DOCS -.->|govern| DB
+
+    %% ──────── Forbidden flows (negative space — KHÔNG có mũi tên giữa các cặp này) ────────
+    %%  ❌ APPS  --x-->  DB           : apps KHÔNG gọi DB trực tiếp
+    %%  ❌ INTEG --x-->  DB           : integrations KHÔNG ghi DB trực tiếp
+    %%  ❌ INTEG --x-->  RUNTIME      : integrations KHÔNG gọi runtime trực tiếp (đi qua services)
+    %%  ❌ SERVICES --x--> DB         : services KHÔNG ghi DB nghiệp vụ trực tiếp
+    %%  ❌ AI_RT --x--> RUNTIME       : AI_RT KHÔNG tự dispatch command nghiệp vụ (qua API + human accept)
+
+    %% ──────── Style ────────
+    classDef append fill:#fff5d7,stroke:#b08800,color:#3a2a00;
+    classDef gov fill:#eee,stroke:#666,color:#222;
+    classDef integ fill:#eef6ff,stroke:#1f5fbf,color:#0b2a55;
+    classDef runtime fill:#e9f7ee,stroke:#2d7a3d,color:#0c3a17;
+    class EVT_STORE,AUDIT_LOG append;
+    class TEST_CONS,ADR_DOCS gov;
+    class GAS_SUP,GWS,LARK,ZALO,TELE,MAIL,OPENAI,GEMINI,ANTHROPIC,OCR,MAPS,PAY,MISA,STORAGE integ;
+    class CMD_ENG,EVT_ENG,WF_ENG,TASK_ENG,PERM_ENG,AUDIT_ENG runtime;
