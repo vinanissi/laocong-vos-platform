@@ -1,0 +1,108 @@
+%% =============================================================
+%% LAOCONG_VOS_PLATFORM — Canonical Diagram
+%% File:        event-flow.mmd
+%% Type:        Mermaid flowchart
+%% Doctrine:    canonical/40_EVENT_DRIVEN_RUNTIME.md
+%% Refs:        ADR-0003 (runtime-first), ADR-0004 (event-driven), ADR-0005 (human-override)
+%% Status:      Draft Canonical (visualization only — NOT runtime implementation)
+%% Last review: 2026-05-10 (Phase 002 Turn 4)
+%%
+%% Notes:
+%%  - Command KHÔNG được mutate state nếu chưa qua Validator + Permission.
+%%  - Event Log là APPEND-ONLY tuyệt đối.
+%%  - Worker PHẢI idempotent (event.id làm dedup key).
+%%  - Human Override có quyền: STOP / REJECT / ROLLBACK / REASSIGN / OVERRIDE.
+%%  - Replay là thao tác thủ công, audit nặng, KHÔNG tự động trên prod.
+%% =============================================================
+
+flowchart LR
+    %% ────────── Actors ──────────
+    USER([User / Operator])
+    HUMAN_OVERRIDE([Human Override<br/>STOP · REJECT · ROLLBACK<br/>REASSIGN · OVERRIDE])
+
+    %% ────────── App layer ──────────
+    UI[App UI<br/>apps/*]
+
+    %% ────────── Runtime: command pipeline ──────────
+    subgraph CMD_PIPELINE [runtime/command-engine]
+      direction TB
+      CMD_API[Command API]
+      CMD_VAL{Command Validator<br/>schema + permission}
+      CMD_LOG[(Command Log<br/>append-only)]
+    end
+
+    %% ────────── Runtime: event pipeline ──────────
+    subgraph EVT_PIPELINE [runtime/event-engine + queue]
+      direction TB
+      EVT_QUEUE[(Event Queue)]
+      WORKER[Worker<br/>services/worker<br/>idempotent · retry · backoff]
+      EVT_LOG[(Event Log<br/>append-only)]
+      DLQ[(Dead Letter Queue)]
+    end
+
+    %% ────────── Read side ──────────
+    READ_MODEL[(Read Model<br/>projection)]
+
+    %% ────────── Audit ──────────
+    AUDIT[(Audit Log<br/>append-only)]
+
+    %% ────────── Notification + Integrations ──────────
+    NOTIF[Notification Adapter<br/>services/notification]
+    EXT[integrations/*<br/>email · telegram · zalo · lark · sheet]
+
+    %% ────────── Replay ──────────
+    REPLAY[Replay / Recovery<br/>manual · audit-heavy]
+
+    %% ────────── Happy path ──────────
+    USER -->|action| UI
+    UI -->|dispatch command| CMD_API
+    CMD_API --> CMD_VAL
+    CMD_VAL -->|append command record| CMD_LOG
+    CMD_VAL -->|valid| EVT_LOG
+    EVT_LOG -->|enqueue handler job| EVT_QUEUE
+    EVT_QUEUE -->|dispatch| WORKER
+    WORKER -->|update projection| READ_MODEL
+    WORKER -->|emit downstream command| CMD_API
+    WORKER -->|notify event| NOTIF
+    NOTIF -->|send| EXT
+    READ_MODEL -.->|read| UI
+
+    %% ────────── Audit trail ──────────
+    CMD_VAL -->|audit who/when/what/why| AUDIT
+    EVT_LOG -->|audit append| AUDIT
+    WORKER -->|audit handler outcome| AUDIT
+    HUMAN_OVERRIDE -->|audit nặng| AUDIT
+
+    %% ────────── Reject path ──────────
+    CMD_VAL -->|invalid / forbidden| REJECT_EVT[/_REJECTED event/]
+    REJECT_EVT --> EVT_LOG
+    REJECT_EVT -.->|UX feedback| UI
+
+    %% ────────── Compensation event ──────────
+    HUMAN_OVERRIDE -->|ROLLBACK / REJECT / REASSIGN<br/>via command| CMD_API
+    CMD_API -->|compensation command| CMD_VAL
+    CMD_VAL -.->|emit COMPENSATION event<br/>KHÔNG xoá event cũ| EVT_LOG
+
+    %% ────────── Dead-letter ──────────
+    WORKER -->|max retry exceeded| DLQ
+    DLQ -->|inspect + re-enqueue<br/>manual + audit| EVT_QUEUE
+    DLQ -.->|alert| HUMAN_OVERRIDE
+
+    %% ────────── Replay ──────────
+    REPLAY -->|read events by range| EVT_LOG
+    REPLAY -->|rebuild projection| READ_MODEL
+    REPLAY -.->|audit nặng| AUDIT
+    HUMAN_OVERRIDE -->|trigger replay manually| REPLAY
+
+    %% ────────── Override pathways ──────────
+    HUMAN_OVERRIDE -.->|STOP queue| EVT_QUEUE
+    HUMAN_OVERRIDE -.->|STOP worker| WORKER
+    HUMAN_OVERRIDE -.->|kill switch| EXT
+
+    %% ────────── Style hints ──────────
+    classDef append fill:#fff5d7,stroke:#b08800,color:#3a2a00;
+    classDef override fill:#ffe4e1,stroke:#a00000,color:#5a0000;
+    classDef external fill:#eef6ff,stroke:#1f5fbf,color:#0b2a55;
+    class EVT_LOG,AUDIT,CMD_LOG,DLQ append;
+    class HUMAN_OVERRIDE,REPLAY override;
+    class EXT,NOTIF external;
