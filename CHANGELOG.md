@@ -9,6 +9,48 @@ Repo tuân thủ append-only — KHÔNG xoá entry cũ, chỉ thêm.
 
 ## [Unreleased]
 
+### Phase 003 — Monorepo Bootstrap (branch `phase/003-monorepo-bootstrap`)
+
+#### Added
+
+- Workspace skeleton: `pnpm-workspace.yaml` (`packages/*`, `apps/*`).
+- TypeScript strict baseline: `tsconfig.base.json`.
+- Line-ending and editor policy: `.gitattributes`, `.editorconfig`.
+- Format/lint skeleton: `.prettierrc.json`, `eslint.config.mjs`.
+- Read-only structure audit: `scripts/check-structure.mjs`; root script `check:structure` in `package.json`.
+- Package skeletons (metadata only): `packages/core-contracts/`, `packages/runtime-sdk/`,
+  `packages/test-console-kit/` (`package.json` + `README.md` each).
+- ADR Draft: `ADR-0006-monorepo-tooling-workspace.md`, `ADR-0007-typescript-strict-baseline.md`,
+  `ADR-0008-lint-format-and-line-ending-policy.md`.
+- Phase report folder: `00_SYSTEM_BRAIN/phase-reports/PHASE_003_MONOREPO_BOOTSTRAP/`
+  (`README.md`, `SPEC.md`, `IMPLEMENTATION_REPORT.md`, `TEST_REPORT.md`, `AI_HANDOFF.md`, `NEXT_STEP.md`).
+- Doc: `docs/MONOREPO_BOOTSTRAP.md`.
+
+#### Changed
+
+- `docs/REPO_STRUCTURE.md`: append section **§6 Phase 003 — Monorepo baseline**.
+
+#### Phase 003 — Turn 2 (tooling hygiene)
+
+- Added `docs/PACKAGE_MANAGER_POLICY.md` — primary root monorepo package manager: **pnpm**; legacy app lockfiles preserved.
+- Clarified pnpm as root monorepo target in `docs/MONOREPO_BOOTSTRAP.md` (Package Manager Policy section) and `00_SYSTEM_BRAIN/decisions/ADR-0006-monorepo-tooling-workspace.md` (Turn 2 constraints).
+- Did **not** generate root `pnpm-lock.yaml` (pnpm not verified available / no install in Turn 2).
+- Preserved existing app-local lockfiles (e.g. `apps/member-web/package-lock.json`); no deletion.
+- Phase 002 `README.md`: reference to `BRANCH_HYGIENE_REPORT.md` (report already under Phase 002 folder; not at repo root).
+
+#### Constraints honoured (Phase 003 Turn 2)
+
+- No app/runtime/business-logic edits; no deploy; no merge; no push; no force-push; no reset.
+- `.myNotes/` and `.project.json` not modified; no app-local lockfile removed.
+
+#### Constraints honoured (Phase 003 Turn 1)
+
+- No runtime/business logic changed in `runtime/`, `services/`, `apps/`, `integrations/` (package skeletons under `packages/` only).
+- No DB migrations; no deploy; no merge; no push; no force-push; no reset.
+- `.myNotes/` and `.project.json` not modified.
+
+---
+
 ### Phase 002 — Architecture Docs Migration (branch `phase/002-architecture-docs-migration`)
 
 > **Trạng thái:** Đã hoàn tất Turn 1..5 (governance finalize).

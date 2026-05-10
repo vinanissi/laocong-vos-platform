@@ -198,3 +198,21 @@ Rules & prompts để Cursor / AI agent hành xử đúng quy ước.
 - KHÔNG có code GAS / Apps Script trong repo này — slot legacy được tạo sẵn.
 - KHÔNG có file/code cũ nào bị xoá hay đổi tên.
 ```
+
+---
+
+## 6. Phase 003 — Monorepo baseline (tooling only)
+
+```txt
+- pnpm workspace skeleton: pnpm-workspace.yaml (packages/*, apps/*).
+- TypeScript strict baseline: tsconfig.base.json (extends target for future packages).
+- Policy / skeleton: .gitattributes (LF), .editorconfig, .prettierrc.json, eslint.config.mjs.
+- Package skeletons: packages/core-contracts, packages/runtime-sdk, packages/test-console-kit
+  (package.json + README placeholder — no runtime implementation).
+- Boundary check: scripts/check-structure.mjs + npm script check:structure (read-only console report).
+- ADR Draft: ADR-0006 (workspace), ADR-0007 (TS baseline), ADR-0008 (lint/format/line endings).
+- Docs: docs/MONOREPO_BOOTSTRAP.md; CHANGELOG [Unreleased] Phase 003 entry.
+- KHÔNG build runtime engine thật; KHÔNG migration DB; KHÔNG đổi business logic trong Phase 003.
+- Package manager policy: docs/PACKAGE_MANAGER_POLICY.md (root ưu tiên pnpm workspace; app-local package-lock giữ nguyên trong Turn 2).
+```
+
