@@ -93,6 +93,7 @@
 | `TEST_REPORT.md` | Checklist verify cấu trúc & ràng buộc |
 | `AI_HANDOFF.md` | Bàn giao cho phiên AI / phase tiếp theo |
 | `NEXT_STEP.md` | Roadmap kế tiếp |
+| `BRANCH_HYGIENE_REPORT.md` | Branch hygiene recovery report (Phase 002 branch vs `dev`, không push nhánh nhiễu) |
 
 ---
 
