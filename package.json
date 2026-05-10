@@ -1,0 +1,22 @@
+{
+  "name": "web-app-template",
+  "scripts": {
+    "dev": "next dev || react-scripts start",
+    "build": "next build || react-scripts build",
+    "start": "next start || react-scripts start",
+    "test": "jest",
+    "deploy": "echo 'Deploy script - customize for your project'"
+  },
+  "dependencies": {
+    "react": "^18.0.0",
+    "next": "^14.0.0"
+  },
+  "version": "1.0.0",
+  "description": "Node.js / React / Next.js web application",
+  "keywords": [
+    "web_app",
+    "idp"
+  ],
+  "author": "",
+  "license": "MIT"
+}

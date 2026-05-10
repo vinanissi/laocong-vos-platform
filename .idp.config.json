@@ -1,0 +1,11 @@
+{
+  "projectType": "WEB_APP",
+  "version": "1.0.0",
+  "created": "2025-12-01",
+  "idpVersion": "3.23",
+  "metadata": {
+    "description": "Node.js / React / Next.js web application",
+    "template": "_WEB_APP_TEMPLATE"
+  },
+  "projectName": "LAOCONG_VOS_PLATFORM"
+}

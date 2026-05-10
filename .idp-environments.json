@@ -1,0 +1,32 @@
+{
+  "projectType": "WEB_APP",
+  "environments": {
+    "DEV": {
+      "name": "Development",
+      "config": {
+        "apiUrl": "http://localhost:3000",
+        "debug": true
+      }
+    },
+    "STAGING": {
+      "name": "Staging",
+      "config": {
+        "apiUrl": "https://staging.example.com",
+        "debug": false
+      }
+    },
+    "PROD": {
+      "name": "Production",
+      "config": {
+        "apiUrl": "https://api.example.com",
+        "debug": false
+      }
+    }
+  },
+  "activeEnvironment": "DEV",
+  "gitBranches": {
+    "DEV": "dev",
+    "STAGING": "staging",
+    "PROD": "main"
+  }
+}
