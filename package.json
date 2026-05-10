@@ -5,7 +5,8 @@
     "build": "next build || react-scripts build",
     "start": "next start || react-scripts start",
     "test": "jest",
-    "deploy": "echo 'Deploy script - customize for your project'"
+    "deploy": "echo 'Deploy script - customize for your project'",
+    "check:structure": "node scripts/check-structure.mjs"
   },
   "dependencies": {
     "react": "^18.0.0",

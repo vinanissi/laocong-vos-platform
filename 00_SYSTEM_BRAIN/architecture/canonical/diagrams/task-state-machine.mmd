@@ -1,0 +1,86 @@
+%% =============================================================
+%% LAOCONG_VOS_PLATFORM — Canonical Diagram
+%% File:        task-state-machine.mmd
+%% Type:        Mermaid stateDiagram-v2
+%% Doctrine:    canonical/40_EVENT_DRIVEN_RUNTIME.md (state machine)
+%%              canonical/50_HUMAN_OVERRIDE_POLICY.md (override transitions)
+%% Refs:        ADR-0004 (event-driven), ADR-0005 (human-override)
+%% Status:      Draft Canonical (visualization only — NOT runtime implementation)
+%% Last review: 2026-05-10 (Phase 002 Turn 4)
+%%
+%% Notes:
+%%  - State machine này là DOCTRINE, chưa phải implementation.
+%%  - Mỗi transition tương ứng 1 event name (TASK_*).
+%%  - Destructive transition (CANCELLED, ROLLED_BACK, REJECTED khi đang IN_PROGRESS)
+%%    PHẢI đi qua human-override pathway + permission-engine kiểm role.
+%%  - Mọi transition append-only (compensation event, KHÔNG xoá lịch sử).
+%%  - Engine chịu trách nhiệm: runtime/task-engine + runtime/workflow-engine.
+%% =============================================================
+
+stateDiagram-v2
+    direction LR
+
+    [*] --> NEW: TASK_CREATED
+
+    NEW --> ACKNOWLEDGED: TASK_ACKNOWLEDGED
+    NEW --> REJECTED: TASK_REVIEW_REJECTED<br/>(input/permission fail)
+    NEW --> CANCELLED: TASK_CANCELLED<br/>(human override · permission required)
+
+    ACKNOWLEDGED --> IN_PROGRESS: TASK_STARTED
+    ACKNOWLEDGED --> CANCELLED: TASK_CANCELLED<br/>(human override)
+    ACKNOWLEDGED --> TIMED_OUT: TASK_TIMED_OUT
+
+    IN_PROGRESS --> WAITING: TASK_WAITING<br/>(awaiting external input)
+    IN_PROGRESS --> REVIEW: TASK_SUBMITTED_FOR_REVIEW
+    IN_PROGRESS --> CANCELLED: TASK_CANCELLED<br/>(human override · audit nặng)
+    IN_PROGRESS --> ROLLED_BACK: TASK_ROLLED_BACK<br/>(compensation event)
+    IN_PROGRESS --> TIMED_OUT: TASK_TIMED_OUT
+
+    WAITING --> IN_PROGRESS: TASK_RESUMED
+    WAITING --> CANCELLED: TASK_CANCELLED<br/>(human override)
+    WAITING --> TIMED_OUT: TASK_TIMED_OUT
+
+    REVIEW --> DONE: TASK_REVIEW_APPROVED → TASK_DONE
+    REVIEW --> IN_PROGRESS: TASK_REVIEW_REJECTED<br/>(rework loop)
+    REVIEW --> ROLLED_BACK: TASK_ROLLED_BACK<br/>(compensation)
+    REVIEW --> CANCELLED: TASK_CANCELLED<br/>(human override)
+
+    DONE --> CLOSED: TASK_CLOSED
+    DONE --> ROLLED_BACK: TASK_ROLLED_BACK<br/>(human override · audit nặng)
+
+    CLOSED --> [*]
+    REJECTED --> [*]
+    CANCELLED --> [*]
+    TIMED_OUT --> ACKNOWLEDGED: TASK_ACKNOWLEDGED<br/>(re-pickup) %% recoverable
+    ROLLED_BACK --> NEW: TASK_CREATED<br/>(new instance with traceId link)
+
+    %% ──────── Notes (rendered as floating notes in mermaid) ────────
+    note right of NEW
+      Created bởi command TASK_CREATE.
+      Validator + permission đã pass.
+      Audit ghi who/when.
+    end note
+
+    note right of REVIEW
+      Có 3 nhánh:
+      - APPROVED → DONE
+      - REJECTED → IN_PROGRESS (rework)
+      - ROLLBACK → ROLLED_BACK (compensation event)
+    end note
+
+    note right of CANCELLED
+      Destructive transition.
+      Yêu cầu permission cao + audit nặng.
+      KHÔNG xoá event cũ — append CANCELLED event.
+    end note
+
+    note right of ROLLED_BACK
+      Compensation pathway (KHÔNG xoá lịch sử).
+      Spawn task mới với correlationId link
+      về task gốc nếu cần re-execute.
+    end note
+
+    note right of TIMED_OUT
+      Recoverable: có thể re-acknowledge.
+      Nếu vượt SLA escalation → notify human override.
+    end note

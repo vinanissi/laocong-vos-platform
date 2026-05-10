@@ -1,0 +1,11 @@
+{
+  "name": "@laocong/test-console-kit",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Phase 003 skeleton — shared test console helpers (no implementation yet).",
+  "type": "module",
+  "exports": {},
+  "scripts": {},
+  "keywords": ["laocong", "testing", "skeleton"],
+  "license": "MIT"
+}
