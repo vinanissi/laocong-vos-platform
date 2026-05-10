@@ -1,0 +1,4 @@
+# Phase 003 — pnpm workspace (skeleton). Apps with own lockfiles remain usable; root links packages.
+packages:
+  - "packages/*"
+  - "apps/*"

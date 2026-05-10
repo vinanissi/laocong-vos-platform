@@ -1,0 +1,11 @@
+{
+  "name": "@laocong/runtime-sdk",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Phase 003 skeleton — client SDK for calling runtime APIs (no implementation yet).",
+  "type": "module",
+  "exports": {},
+  "scripts": {},
+  "keywords": ["laocong", "sdk", "skeleton"],
+  "license": "MIT"
+}

@@ -1,0 +1,11 @@
+{
+  "name": "@laocong/core-contracts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Phase 003 skeleton — shared type-safe contracts (no implementation yet).",
+  "type": "module",
+  "exports": {},
+  "scripts": {},
+  "keywords": ["laocong", "contracts", "skeleton"],
+  "license": "MIT"
+}
